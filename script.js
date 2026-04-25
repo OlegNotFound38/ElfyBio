@@ -34,6 +34,7 @@ const audio = document.getElementById('audio');
 const musicBtn = document.getElementById('musicBtn');
 const eq = document.getElementById('eq');
 const musicHint = document.getElementById('musicHint');
+const volumeSlider = document.getElementById('volumeSlider');
 
 let playing = false;
 let musicReady = false;
@@ -46,7 +47,15 @@ function setMusicState(state, text){
   musicHint.textContent = text || (state ? 'Выключить' : 'Включить');
 }
 
-audio.volume = 0.8;
+let savedVolume = 80;
+try{
+  savedVolume = Number(localStorage.getItem('musicVolume'));
+}catch(error){
+  savedVolume = 80;
+}
+const initialVolume = Number.isFinite(savedVolume) ? savedVolume : 80;
+volumeSlider.value = String(initialVolume);
+audio.volume = initialVolume / 100;
 
 audio.addEventListener('canplay', () => {
   musicReady = true;
@@ -75,6 +84,76 @@ musicBtn.addEventListener('click', async () => {
   }
 });
 
+volumeSlider.addEventListener('input', () => {
+  const volume = Number(volumeSlider.value);
+  audio.volume = volume / 100;
+  try{
+    localStorage.setItem('musicVolume', String(volume));
+  }catch(error){
+    // Громкость все равно меняется, даже если браузер запретил сохранение.
+  }
+  if(volume === 0){
+    setMusicState(playing, 'Без звука');
+  }else if(!playing){
+    setMusicState(false, 'Включить');
+  }
+});
+
+/* ===== Smooth page navigation ===== */
+const navLinks = [...document.querySelectorAll('.nav a[data-target]')];
+const pageSections = [...document.querySelectorAll('[data-section]')];
+
+function scrollToSection(id){
+  const section = document.getElementById(id);
+  if(!section) return;
+  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  history.replaceState(null, '', `#${id}`);
+}
+
+function setActiveNav(id){
+  for(const link of navLinks){
+    link.classList.toggle('active', link.dataset.target === id);
+  }
+}
+
+for(const link of navLinks){
+  link.addEventListener('click', (event) => {
+    event.preventDefault();
+    scrollToSection(link.dataset.target);
+    setActiveNav(link.dataset.target);
+  });
+}
+
+if('IntersectionObserver' in window){
+  const sectionObserver = new IntersectionObserver((entries) => {
+    const visible = entries
+      .filter((entry) => entry.isIntersecting)
+      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+    for(const entry of entries){
+      if(entry.isIntersecting) entry.target.classList.add('visible');
+    }
+
+    if(visible){
+      setActiveNav(visible.target.id);
+    }
+  }, {
+    rootMargin: '-20% 0px -55% 0px',
+    threshold: [0.15, 0.3, 0.6]
+  });
+
+  for(const section of pageSections){
+    sectionObserver.observe(section);
+  }
+}else{
+  for(const section of pageSections){
+    section.classList.add('visible');
+  }
+}
+
+document.getElementById('links')?.classList.add('visible');
+setActiveNav(location.hash.replace('#', '') || 'links');
+
 /* ===== GitHub data ===== */
 const avatarImg = document.getElementById('avatarImg');
 
@@ -91,7 +170,7 @@ function setNick(text){
 
 document.getElementById('profileUrl').textContent = GH_PROFILE;
 document.getElementById('openGitHubBtn').onclick = () => window.open(GH_PROFILE, '_blank');
-document.getElementById('scrollReposBtn').onclick = () => document.querySelector('#repos').scrollIntoView({behavior:'smooth'});
+document.getElementById('scrollReposBtn').onclick = () => scrollToSection('repos');
 document.getElementById('btnProfile').onclick = () => window.open(GH_PROFILE, '_blank');
 document.getElementById('btnRepos').onclick = () => window.open(`${GH_PROFILE}?tab=repositories`, '_blank');
 

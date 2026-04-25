@@ -54,17 +54,17 @@
       </div>
     </div>
 
-    <nav class="nav">
-      <a href="#about">Обо мне</a>
-      <a href="#stats">Статы</a>
-      <a href="#repos">Репозитории</a>
-      <a href="#links">Ссылки</a>
+    <nav class="nav" aria-label="Навигация по странице">
+      <a href="#links" data-target="links">Главная</a>
+      <a href="#about" data-target="about">Обо мне</a>
+      <a href="#stats" data-target="stats">Статы</a>
+      <a href="#repos" data-target="repos">Репозитории</a>
     </nav>
   </div>
 </header>
 
 <main class="wrap">
-  <section class="hero" id="links">
+  <section class="hero reveal" id="links" data-section>
     <div class="tilt" id="tilt">
       <article class="card" id="card">
         <div class="behind" aria-hidden="true"><div class="stars"></div></div>
@@ -87,7 +87,7 @@
 
       <div class="cta">
         <button class="btn" id="openGitHubBtn">Открыть GitHub</button>
-        <button class="btn secondary" id="scrollReposBtn">Смотреть репы</button>
+        <button class="btn secondary" id="scrollReposBtn" type="button">Смотреть репы</button>
       </div>
 
       <div class="grid">
@@ -121,7 +121,7 @@
     </div>
   </section>
 
-  <section class="section" id="about">
+  <section class="section reveal" id="about" data-section>
     <div class="big">
       <h2>Обо мне</h2>
       <p>
@@ -136,7 +136,7 @@
       </div>
     </div>
 
-    <aside class="big" id="stats">
+    <aside class="big reveal" id="stats" data-section>
       <h2>Статы</h2>
       <div class="list">
         <div class="item"><b>Публичные репозитории</b><span id="stRepos">—</span></div>
@@ -153,7 +153,7 @@
     </aside>
   </section>
 
-  <section class="section" id="repos">
+  <section class="section reveal" id="repos" data-section>
     <div class="big">
       <h2>Топ репозиториев</h2>
       <p>Список репозиториев по звездам.</p>
@@ -186,13 +186,19 @@
 </main>
 
 <div class="music">
-  <button class="pill" id="musicBtn" type="button" title="Включить/выключить музыку">
-    <div class="eq" id="eq" aria-hidden="true"><i></i><i></i><i></i></div>
-    <div>
-      <div class="music-title">Музыка</div>
-      <div class="hint" id="musicHint">Включить</div>
-    </div>
-  </button>
+  <div class="music-panel">
+    <button class="pill" id="musicBtn" type="button" title="Включить/выключить музыку">
+      <div class="eq" id="eq" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div>
+        <div class="music-title">Музыка</div>
+        <div class="hint" id="musicHint">Включить</div>
+      </div>
+    </button>
+    <label class="volume-control" for="volumeSlider">
+      <span>Громкость</span>
+      <input id="volumeSlider" type="range" min="0" max="100" value="80" aria-label="Громкость музыки">
+    </label>
+  </div>
 </div>
 
 <audio id="audio" src="music.mp3" preload="metadata" loop playsinline></audio>
