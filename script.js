@@ -35,16 +35,68 @@ const musicBtn = document.getElementById('musicBtn');
 const eq = document.getElementById('eq');
 const musicHint = document.getElementById('musicHint');
 const volumeSlider = document.getElementById('volumeSlider');
+const MUSIC_TEXT = {
+  on: '\u0412\u043a\u043b\u044e\u0447\u0438\u0442\u044c',
+  off: '\u0412\u044b\u043a\u043b\u044e\u0447\u0438\u0442\u044c',
+  starting: '\u0417\u0430\u043f\u0443\u0441\u043a\u0430\u044e...',
+  loading: '\u0417\u0430\u0433\u0440\u0443\u0436\u0430\u044e...',
+  buffering: '\u0411\u0443\u0444\u0435\u0440\u0438\u0437\u0430\u0446\u0438\u044f...',
+  missing: '\u0424\u0430\u0439\u043b \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d',
+  retry: '\u041d\u0430\u0436\u043c\u0438 \u0435\u0449\u0435 \u0440\u0430\u0437',
+  muted: '\u0411\u0435\u0437 \u0437\u0432\u0443\u043a\u0430'
+};
 
 let playing = false;
 let musicReady = false;
+let userWantsMusic = false;
+let audioSourcePromise = null;
+let audioSourceReady = false;
+let objectAudioUrl = null;
 
 function setMusicState(state, text){
   playing = state;
   eq.classList.toggle('playing', state);
   musicBtn.classList.toggle('is-playing', state);
   musicBtn.setAttribute('aria-pressed', String(state));
-  musicHint.textContent = text || (state ? 'Выключить' : 'Включить');
+  musicHint.textContent = text || (state ? MUSIC_TEXT.off : MUSIC_TEXT.on);
+}
+
+async function prepareAudioSource(){
+  if(audioSourcePromise) return audioSourcePromise;
+
+  audio.preload = 'auto';
+  audio.load();
+
+  audioSourcePromise = (async () => {
+    if(location.protocol === 'http:' || location.protocol === 'https:'){
+      const response = await fetch(audio.currentSrc || audio.src, { cache: 'force-cache' });
+      if(!response.ok) throw new Error('music fetch failed');
+
+      const blob = await response.blob();
+      if(userWantsMusic && !audio.paused) return;
+
+      if(objectAudioUrl) URL.revokeObjectURL(objectAudioUrl);
+      objectAudioUrl = URL.createObjectURL(blob);
+      audio.src = objectAudioUrl;
+      audio.load();
+    }
+    audioSourceReady = true;
+  })().catch((error) => {
+    console.warn('Music preload fallback:', error);
+  });
+
+  return audioSourcePromise;
+}
+
+async function startMusic(){
+  userWantsMusic = true;
+  setMusicState(false, musicReady ? MUSIC_TEXT.starting : MUSIC_TEXT.loading);
+
+  const sourcePromise = prepareAudioSource();
+  if(audioSourceReady) await sourcePromise;
+
+  audio.muted = false;
+  await audio.play();
 }
 
 let savedVolume = 80;
@@ -56,31 +108,50 @@ try{
 const initialVolume = Number.isFinite(savedVolume) ? savedVolume : 80;
 volumeSlider.value = String(initialVolume);
 audio.volume = initialVolume / 100;
+prepareAudioSource();
 
 audio.addEventListener('canplay', () => {
   musicReady = true;
-  if(!playing) setMusicState(false, 'Включить');
+  if(!playing) setMusicState(false, MUSIC_TEXT.on);
+});
+audio.addEventListener('canplaythrough', () => {
+  musicReady = true;
+  if(userWantsMusic) setMusicState(true, MUSIC_TEXT.off);
 });
 audio.addEventListener('playing', () => setMusicState(true));
-audio.addEventListener('pause', () => setMusicState(false));
-audio.addEventListener('ended', () => setMusicState(false));
+audio.addEventListener('pause', () => {
+  if(!userWantsMusic) setMusicState(false, MUSIC_TEXT.on);
+});
+audio.addEventListener('waiting', () => {
+  if(userWantsMusic) setMusicState(true, MUSIC_TEXT.buffering);
+});
+audio.addEventListener('stalled', () => {
+  if(userWantsMusic) setMusicState(true, MUSIC_TEXT.buffering);
+});
+audio.addEventListener('ended', () => {
+  if(!audio.loop){
+    userWantsMusic = false;
+    setMusicState(false, MUSIC_TEXT.on);
+  }
+});
 audio.addEventListener('error', () => {
   musicReady = false;
-  setMusicState(false, 'Файл не найден');
+  userWantsMusic = false;
+  setMusicState(false, MUSIC_TEXT.missing);
 });
 
 musicBtn.addEventListener('click', async () => {
   if(playing){
+    userWantsMusic = false;
     audio.pause();
     return;
   }
 
   try{
-    setMusicState(false, musicReady ? 'Запускаю...' : 'Загружаю...');
-    audio.muted = false;
-    await audio.play();
+    await startMusic();
   }catch(error){
-    setMusicState(false, 'Нажми еще раз');
+    userWantsMusic = false;
+    setMusicState(false, MUSIC_TEXT.retry);
   }
 });
 
@@ -90,15 +161,14 @@ volumeSlider.addEventListener('input', () => {
   try{
     localStorage.setItem('musicVolume', String(volume));
   }catch(error){
-    // Громкость все равно меняется, даже если браузер запретил сохранение.
+    // Volume still changes even when storage is unavailable.
   }
   if(volume === 0){
-    setMusicState(playing, 'Без звука');
+    setMusicState(playing, MUSIC_TEXT.muted);
   }else if(!playing){
-    setMusicState(false, 'Включить');
+    setMusicState(false, MUSIC_TEXT.on);
   }
 });
-
 /* ===== Smooth page navigation ===== */
 const navLinks = [...document.querySelectorAll('.nav a[data-target]')];
 const pageSections = [...document.querySelectorAll('[data-section]')];
