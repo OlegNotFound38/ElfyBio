@@ -6,7 +6,7 @@
 
 Сайт открывается по ссылке:
 
-<https://kelfy87.github.io/kelfy87site1/>
+<https://kelfy87.github.io/GithubBio/>
 
 Проект статический, поэтому для публикации достаточно разместить файлы в GitHub Pages.
 
